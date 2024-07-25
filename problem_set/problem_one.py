@@ -77,14 +77,29 @@ from typing import List, Tuple, Iterator
 from dataclasses import dataclass
 import io
 
+class InvalidTestCaseError(Exception):
+    """
+    Represents an invalid test case
+    """
+    def __init__(self, message: str, line_number: int) -> None:
+        self.message = message
+        self.line_number = line_number
+        super().__init__(f"Invalid test case at line {line_number}: {message}")
+
 @dataclass(frozen=True)
 class TestCase:
+    """
+    TestCase data class
+    """
     n: int
     m: int
     columns: List[int]
     expected_output: int
 
 class TestCaseReader:
+    """
+    Utility class for reading test case inputs from .txt file
+    """
     def __init__(self, file_path: str):
         self.file_path = file_path
         self._test_cases: List[TestCase] = []
@@ -92,12 +107,46 @@ class TestCaseReader:
 
     def _read_test_cases(self) -> None:
         with open(self.file_path, 'r') as file:
-            num_columns, num_cases = file.readline().strip().split(' ')
-            for _ in range(num_cases):
-                n, m = map(int, file.readline().split())
-                columns = list(map(int, file.readline().split()))
-                expected_output = int(file.readline().strip())
-                self._test_cases.append(TestCase(n, m, columns, expected_output))
+            line_number = 0
+            while True:
+                try:
+                    # Read n and m
+                    line_number += 1
+                    line = file.readline().strip()
+                    if not line:
+                        break
+                    n, m = map(int, line.split())
+
+                    # Read columns
+                    line_number += 1
+                    columns_line = file.readline().strip()
+                    if not columns_line:
+                        raise ValueError("Unexpected end of file while reading")
+                    columns = list(map(int, columns_line.split()))
+                    if len(columns) != m:
+                        raise InvalidTestCaseError(
+                            f"Expected {m} columns but got {len(columns)}", len(columns)
+                        )
+                    # Read expected output
+                    line_number += 1
+                    expected_output_line = file.readline().strip()
+                    if not expected_output_line:
+                        raise InvalidTestCaseError(
+                            "Unexpected end of file while reading expected output", line_number)
+                    expected_output = int(expected_output_line)
+
+                    # Create and append the test case
+                    self._test_cases.append(TestCase(n, m, columns, expected_output))
+
+                except InvalidTestCaseError:
+                    print("Skipping invalid test case")
+                    continue
+                except ValueError as exception:
+                    print(f"ValueError {exception}")
+                    continue
+                except EOFError:
+                    print("Reached end of file")
+                    break
 
     def __len__(self) -> int:
         return len(self._test_cases)
@@ -116,6 +165,9 @@ class TestCaseReader:
 
     @classmethod
     def from_string(cls, content: str) -> 'TestCaseReader':
+        """
+        Generate test case from a plain string
+        """
         instance = cls.__new__(cls)
         instance.file_path = "string input"
         instance._test_cases = []
@@ -132,23 +184,48 @@ class TestCaseReader:
             self._test_cases.append(TestCase(n, m, columns, expected_output))
 
     def get_input_output_pairs(self) -> List[Tuple[Tuple[int, int, List[int]], int]]:
+        """
+        Get input pairs as a 3-tuple
+        """
         return [((tc.n, tc.m, tc.columns), tc.expected_output) for tc in self._test_cases]
 
 test_case_reader = TestCaseReader('./problem_set/input.txt')
+test_case_reader[0]
 
 
 class Solution:
     def __init__(self) -> None:
-        f = open('./problem_set/input.txt') 
+        #f = open('./problem_set/input.txt') 
 
 
         self.problem = []
 
 
     def __call__(self, *args: any, **kwds: any) -> any:
-        pass
+        test_case: TestCase = args[0]
+        sol = self.solution(test_case.n, test_case.m, test_case.columns)
+        if sol == test_case.expected_output:
+            print("Passed!")
+
+    def solution(self, n: int, m: int, columns: List[int], ) -> int:
+        """
+        n - number of columns
+        m - number of inputs
+        columns - column in with the i_th square will appear
+        Finds the solution (expected output) given the test case input
+        """
+        expected_output = 0
+        cols = [0] * n
+        for i, val in enumerate(columns):
+            cols[val - 1] += 1
+            if all(cols):
+                cols = list(map(lambda x: x-1 if x > 0 else 0, cols))
+                expected_output += 1
+        return expected_output
 
 
 
-soln = Solution()
-soln()
+
+
+solve = Solution()
+solve(test_case_reader[0])
